@@ -138,3 +138,5 @@ resource "aws_route_table_association" "route-c" {
   subnet_id      = aws_subnet.public-subnet-3.id
   route_table_id = aws_route_table.route-table.id
 }
+
+// working code
