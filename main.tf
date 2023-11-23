@@ -1,9 +1,8 @@
-// terraform connection:
-
+// Terraform connection
 terraform {
   required_providers {
     aws = {
-      source = "hashicorp/aws"
+      source  = "hashicorp/aws"
       version = "5.26.0"
     }
   }
@@ -14,10 +13,9 @@ provider "aws" {
 }
 
 
-// main vpc creation
 
+// Main VPC creation
 resource "aws_vpc" "main-vpc" {
-  
   cidr_block = "10.0.0.0/16"
 
   tags = {
@@ -26,78 +24,36 @@ resource "aws_vpc" "main-vpc" {
 }
 
 
-# //public subnet creations *3
+// Public subnet creations
+resource "aws_subnet" "public-subnets" {
+  vpc_id = aws_vpc.main-vpc.id
+  map_public_ip_on_launch = true
+  count  = var.public-subnet-count
 
-resource "aws_subnet" "public-subnet-1" {
-  vpc_id     = aws_vpc.main-vpc.id
-  cidr_block = "10.0.2.0/24"
+  cidr_block       = "10.0.${count.index * 5}.0/26"
+  availability_zone = "eu-west-2${element(["a", "b", "c"], count.index)}"
 
   tags = {
-    Name = "public-subnet-1"
+    Name = "public-subnet-${count.index + 1}"
   }
 }
 
 
-resource "aws_subnet" "public-subnet-2" {
-  vpc_id     = aws_vpc.main-vpc.id
-  cidr_block = "10.0.4.0/24"
-  availability_zone = "eu-west-2b"
+// Private subnet creations
+resource "aws_subnet" "private-subnets" {
+  vpc_id = aws_vpc.main-vpc.id
+  count  = 3
+
+  cidr_block       = "10.0.${count.index * 5 + 128}.0/26"
+  availability_zone = "eu-west-2${element(["a", "b", "c"], count.index)}"
 
   tags = {
-    Name = "public-subnet-2"
+    Name = "private-subnet-${count.index + 1}"
   }
 }
 
 
-resource "aws_subnet" "public-subnet-3" {
-  vpc_id     = aws_vpc.main-vpc.id
-  cidr_block = "10.0.6.0/24"
-  availability_zone = "eu-west-2c"
-
-  tags = {
-    Name = "public-subnet-3"
-  }
-}
-
-
-# // private subnets *3
-
-resource "aws_subnet" "private-subnet-1" {
-  vpc_id     = aws_vpc.main-vpc.id
-  cidr_block = "10.0.8.0/24"
-  availability_zone = "eu-west-2a"
-
-  tags = {
-    Name = "private-subnet-1"
-  }
-}
-
-
-resource "aws_subnet" "private-subnet-2" {
-  vpc_id     = aws_vpc.main-vpc.id
-  cidr_block = "10.0.10.0/24"
-  availability_zone = "eu-west-2b"
-
-  tags = {
-    Name = "private-subnet-2"
-  }
-}
-
-
-resource "aws_subnet" "private-subnet-3" {
-  vpc_id     = aws_vpc.main-vpc.id
-  cidr_block = "10.0.12.0/24"
-  availability_zone = "eu-west-2c"
-
-  tags = {
-    Name = "private-subnet-3"
-  }
-}
-
-
-
-# // internet gateway:
-
+// Internet gateway
 resource "aws_internet_gateway" "gw" {
   vpc_id = aws_vpc.main-vpc.id
 
@@ -107,9 +63,8 @@ resource "aws_internet_gateway" "gw" {
 }
 
 
-# // route table:
-
-resource "aws_route_table" "route-table" {
+// Public route table
+resource "aws_route_table" "public-route-table" {
   vpc_id = aws_vpc.main-vpc.id
 
   route {
@@ -118,25 +73,37 @@ resource "aws_route_table" "route-table" {
   }
 
   tags = {
-    Name = "route-table"
+    Name = "public-route-table"
   }
 }
 
-// route table associations:
 
-resource "aws_route_table_association" "route-a" {
-  subnet_id      = aws_subnet.public-subnet-1.id
-  route_table_id = aws_route_table.route-table.id
+// Private route tables
+resource "aws_route_table" "private-route-table" {
+  count = 3
+
+  vpc_id = aws_vpc.main-vpc.id
+
+  tags = {
+    Name = "private-route-table-${count.index + 1}"
+  }
 }
 
-resource "aws_route_table_association" "route-b" {
-  subnet_id      = aws_subnet.public-subnet-2.id
-  route_table_id = aws_route_table.route-table.id
+
+// Route table associations for public subnets
+resource "aws_route_table_association" "public-route" {
+  count = 3
+
+  subnet_id      = aws_subnet.public-subnets[count.index].id
+  route_table_id = aws_route_table.public-route-table.id
 }
 
-resource "aws_route_table_association" "route-c" {
-  subnet_id      = aws_subnet.public-subnet-3.id
-  route_table_id = aws_route_table.route-table.id
+
+// Route table associations for private subnets
+resource "aws_route_table_association" "private-route" {
+  count = 3
+
+  subnet_id      = aws_subnet.private-subnets[count.index].id
+  route_table_id = aws_route_table.private-route-table[count.index].id
 }
 
-// working code
