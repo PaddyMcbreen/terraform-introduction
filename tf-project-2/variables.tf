@@ -8,7 +8,7 @@ variable "name" {
 // azs config:
 variable "azs-config" {
   type    = string
-  default = "eu-west-2" // London
+  default = "eu-east-2"
 }
 
 
