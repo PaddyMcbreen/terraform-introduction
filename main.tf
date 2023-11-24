@@ -17,7 +17,7 @@ resource "aws_subnet" "public-subnets" {
   availability_zone = "eu-west-2${element(["a", "b", "c"], count.index)}"
 
   tags = {
-    Name = "public-subnet-${count.index + 1}"
+    Name = "public-subnet-eu-west-2${element(["a", "b", "c"], count.index)}-${count.index + 1}"
   }
 }
 
@@ -31,7 +31,7 @@ resource "aws_subnet" "private-subnets" {
   availability_zone = "eu-west-2${element(["a", "b", "c"], count.index)}"
 
   tags = {
-    Name = "private-subnet-${count.index + 1}"
+    Name = "private-subnet-eu-west-2${element(["a", "b", "c"], count.index)}-${count.index + 1}"
   }
 }
 
@@ -84,7 +84,7 @@ resource "aws_route_table" "private-route-table" {
   }
 
   tags = {
-    Name = "private-route-table-${count.index + 1}"
+    Name = "private-route-table-eu-west-2${element(["a", "b", "c"], count.index)}-${count.index + 1}"
   }
 }
 
@@ -107,5 +107,24 @@ resource "aws_route_table_association" "private-route" {
 }
 
 
+// modules vpc from terraform docs
 
+module "vpc" {
+  source = "terraform-aws-modules/vpc/aws"
+
+  name = "terra-vpc"
+  cidr = "10.0.0.0/16"
+
+  azs             = ["eu-west-2a", "eu-west-2b", "eu-west-2c"]
+  private_subnets = ["10.0.1.0/24", "10.0.2.0/24", "10.0.3.0/24"]
+  public_subnets  = ["10.0.101.0/24", "10.0.102.0/24", "10.0.103.0/24"]
+
+  enable_nat_gateway = true
+  enable_vpn_gateway = true
+
+  tags = {
+    Terraform = "true"
+    Environment = "dev"
+  }
+}
 
