@@ -1,19 +1,3 @@
-// Terraform connection
-terraform {
-  required_providers {
-    aws = {
-      source  = "hashicorp/aws"
-      version = "5.26.0"
-    }
-  }
-}
-
-provider "aws" {
-  region = "eu-west-2"
-}
-
-
-
 // Main VPC creation
 resource "aws_vpc" "main-vpc" {
   cidr_block = "10.0.0.0/16"
@@ -23,14 +7,13 @@ resource "aws_vpc" "main-vpc" {
   }
 }
 
-
 // Public subnet creations
 resource "aws_subnet" "public-subnets" {
-  vpc_id = aws_vpc.main-vpc.id
+  vpc_id                  = aws_vpc.main-vpc.id
   map_public_ip_on_launch = true
-  count  = var.public-subnet-count
+  count                   = var.public-subnet-count
 
-  cidr_block       = "10.0.${count.index * 5}.0/26"
+  cidr_block        = "10.0.${count.index * 5}.0/26"
   availability_zone = "eu-west-2${element(["a", "b", "c"], count.index)}"
 
   tags = {
@@ -42,9 +25,9 @@ resource "aws_subnet" "public-subnets" {
 // Private subnet creations
 resource "aws_subnet" "private-subnets" {
   vpc_id = aws_vpc.main-vpc.id
-  count  = 3
+  count  = var.private-subnet-count
 
-  cidr_block       = "10.0.${count.index * 5 + 128}.0/26"
+  cidr_block        = "10.0.${count.index * 5 + 128}.0/26"
   availability_zone = "eu-west-2${element(["a", "b", "c"], count.index)}"
 
   tags = {
@@ -59,6 +42,18 @@ resource "aws_internet_gateway" "gw" {
 
   tags = {
     Name = "internet-gateway"
+  }
+}
+
+// Nat gateway
+resource "aws_nat_gateway" "ngw" {
+  count = 1
+
+  connectivity_type = "private"
+  subnet_id         = aws_subnet.private-subnets[count.index].id
+
+  tags = {
+    Name = "nat-internet-gateway"
   }
 }
 
@@ -80,9 +75,13 @@ resource "aws_route_table" "public-route-table" {
 
 // Private route tables
 resource "aws_route_table" "private-route-table" {
-  count = 3
-
+  count  = var.private-subnet-count
   vpc_id = aws_vpc.main-vpc.id
+
+  route {
+    cidr_block = "0.0.0.0/0"
+    gateway_id = aws_nat_gateway.ngw[count.index - count.index].id
+  }
 
   tags = {
     Name = "private-route-table-${count.index + 1}"
@@ -92,7 +91,7 @@ resource "aws_route_table" "private-route-table" {
 
 // Route table associations for public subnets
 resource "aws_route_table_association" "public-route" {
-  count = 3
+  count = var.public-subnet-count
 
   subnet_id      = aws_subnet.public-subnets[count.index].id
   route_table_id = aws_route_table.public-route-table.id
@@ -101,7 +100,7 @@ resource "aws_route_table_association" "public-route" {
 
 // Route table associations for private subnets
 resource "aws_route_table_association" "private-route" {
-  count = 3
+  count = var.private-subnet-count
 
   subnet_id      = aws_subnet.private-subnets[count.index].id
   route_table_id = aws_route_table.private-route-table[count.index].id
