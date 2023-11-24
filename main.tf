@@ -45,7 +45,7 @@ resource "aws_internet_gateway" "gw" {
   }
 }
 
-// Nat gateway
+#  Nat gateway
 resource "aws_nat_gateway" "ngw" {
   count = 1
 
@@ -105,4 +105,7 @@ resource "aws_route_table_association" "private-route" {
   subnet_id      = aws_subnet.private-subnets[count.index].id
   route_table_id = aws_route_table.private-route-table[count.index].id
 }
+
+
+
 
